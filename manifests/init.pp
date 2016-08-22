@@ -6,12 +6,12 @@
 #
 # Mark Stanislav <mstanislav@duosecurity.com>
 class duo_unix (
-  $usage = '',
-  $ikey = '',
-  $skey = '',
-  $host = '',
-  $group = '',
-  $http_proxy = '',
+  $usage = undef,
+  $ikey = undef,
+  $skey = undef,
+  $host = undef,
+  $group = undef,
+  $http_proxy = undef,
   $fallback_local_ip = 'no',
   $failmode = 'safe',
   $pushinfo = 'no',
@@ -24,12 +24,21 @@ class duo_unix (
   $pam_unix_control = 'requisite',
   $package_version = 'installed',
 ) {
-  if $ikey == '' or $skey == '' or $host == '' {
+
+  unless $ikey and $skey and $host {
     fail('ikey, skey, and host must all be defined.')
   }
 
-  if $usage != 'login' and $usage != 'pam' {
-    fail('You must configure a usage of duo_unix, either login or pam.')
+  case $variable {
+    'login': {
+      include ::duo_unix::login
+    }
+    'pam': {
+      include ::duo_unix::pam
+    }
+    default: {
+      fail("You must configure a usage of duo_unix, either login or pam (got '${usage}')")
+    }
   }
 
   case $::osfamily {
@@ -44,13 +53,13 @@ class duo_unix (
       }
 
       $pam_module  = $::architecture ? {
-        i386   => '/lib/security/pam_duo.so',
-        i686   => '/lib/security/pam_duo.so',
-        x86_64 => '/lib64/security/pam_duo.so'
+        'i386'   => '/lib/security/pam_duo.so',
+        'i686'   => '/lib/security/pam_duo.so',
+        'x86_64' => '/lib64/security/pam_duo.so'
       }
 
-      include duo_unix::yum
-      include duo_unix::generic
+      include ::duo_unix::yum
+      include ::duo_unix::generic
     }
     'Debian': {
       $duo_package = 'duo-unix'
@@ -59,22 +68,17 @@ class duo_unix (
       $pam_file    = '/etc/pam.d/common-auth'
 
       $pam_module  = $::architecture ? {
-        i386  => '/lib/security/pam_duo.so',
-        i686  => '/lib/security/pam_duo.so',
-        amd64 => '/lib64/security/pam_duo.so'
+        'i386'  => '/lib/security/pam_duo.so',
+        'i686'  => '/lib/security/pam_duo.so',
+        'amd64' => '/lib64/security/pam_duo.so'
       }
 
-      include duo_unix::apt
-      include duo_unix::generic
+      include ::duo_unix::apt
+      include ::duo_unix::generic
     }
     default: {
       fail("Module ${module_name} does not support ${::operatingsystem}")
     }
   }
 
-  if $usage == 'login' {
-    include duo_unix::login
-  } else {
-    include duo_unix::pam
-  }
 }
